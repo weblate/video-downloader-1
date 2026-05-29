@@ -732,10 +732,16 @@ class FileUtils @Inject constructor(
         private const val EXTERNAL_DOWNLOADS_CONTENT_URI = "content://media/external/downloads"
 
         private fun sanitizeFileNameStatic(value: String): String {
-            return value
-                .replace(Regex("""[\\/:*?"<>|]"""), "_")
+            val sanitized = value
+                .replace(Regex("""[\u0000-\u001F\u007F]"""), "") // remove control chars
+                .replace(Regex("""[\\/:*?"<>|]"""), "_") // remove path separators/reserved chars
+                .replace(Regex("""\.\.+"""), "_") // neutralize parent/current traversal style dot runs
+                .replace(Regex("""\s+"""), " ")
+                .trim()
+                .trim('.', ' ')
                 .take(160)
-                .ifBlank { "media_${System.currentTimeMillis()}" }
+
+            return sanitized.ifBlank { "media_${System.currentTimeMillis()}" }
         }
 
 private fun normalizeRelativeDownloadsPath(
