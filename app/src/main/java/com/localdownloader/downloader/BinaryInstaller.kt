@@ -382,7 +382,24 @@ class BinaryInstaller @Inject constructor(
         ZipInputStream(FileInputStream(sourceZip)).use { zip ->
             var entry = zip.nextEntry
             while (entry != null) {
-                val output = safeZipEntryFile(targetRootPath, entry.name)
+                val normalizedEntryName = entry.name.replace('\\', '/')
+                val unsafeEntry = normalizedEntryName.isBlank() ||
+                    normalizedEntryName.startsWith("/") ||
+                    normalizedEntryName == "." ||
+                    normalizedEntryName == ".." ||
+                    normalizedEntryName.contains("/../") ||
+                    normalizedEntryName.startsWith("../") ||
+                    normalizedEntryName.endsWith("/..")
+                check(!unsafeEntry) {
+                    "Unsafe zip entry path: ${entry.name}"
+                }
+
+                val outputPath = targetRootPath.resolve(normalizedEntryName).normalize()
+                check(outputPath.startsWith(targetRootPath)) {
+                    "Unsafe zip entry path: ${entry.name}"
+                }
+                val output = outputPath.toFile()
+
                 if (entry.isDirectory) {
                     output.mkdirs()
                 } else {
